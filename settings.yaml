@@ -1,0 +1,7 @@
+bots: 1000
+
+auth_host: localhost
+auth_port: 6500
+
+game_host: localhost
+game_port: 6400
