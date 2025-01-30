@@ -2,4 +2,7 @@ module spire/bot
 
 go 1.22.2
 
-require gopkg.in/yaml.v3 v3.0.1 // indirect
+require (
+	google.golang.org/protobuf v1.36.4 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+)

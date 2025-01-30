@@ -8,13 +8,11 @@ import (
 )
 
 type Settings struct {
-	Bots uint
-
-	AuthHost string
-	AuthPort int
-
-	GameHost string
-	GamePort int
+	Bots     int    `yaml:"bots"`
+	AuthHost string `yaml:"auth_host"`
+	AuthPort int    `yaml:"auth_port"`
+	GameHost string `yaml:"game_host"`
+	GamePort int    `yaml:"game_port"`
 }
 
 func ReadSettings(settingsPath string) Settings {

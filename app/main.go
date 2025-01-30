@@ -15,7 +15,7 @@ func main() {
 
 	conn, err := net.Dial("tcp", net.JoinHostPort(settings.GameHost, strconv.Itoa(settings.GamePort)))
 	if err != nil {
-		log.Fatalf("Failed to connect to %s:%d: %v", settings.GameHost, settings.GamePort, err)
+		log.Fatalf("Failed to connect to %s:%d. %v", settings.GameHost, settings.GamePort, err)
 	}
 	defer conn.Close()
 
