@@ -7,7 +7,7 @@ import (
 	"net"
 	"strconv"
 
-	"spire/bot/internal/core"
+	"spire/bot/src/core"
 )
 
 func main() {

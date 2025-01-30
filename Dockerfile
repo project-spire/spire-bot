@@ -13,5 +13,5 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 WORKDIR /workspace
 COPY . .
 
-RUN mkdir -p gen && \
-    protoc -I=protocol/msg --go_out=gen $(find protocol/msg -name "*.proto" -print)
+RUN mkdir gen && \
+    make gen

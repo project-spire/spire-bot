@@ -1,5 +1,5 @@
 package bot
 
 import (
-	"spire/msg"
+	"gen/spire/msg"
 )
