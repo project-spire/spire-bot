@@ -1,4 +1,4 @@
-bots: 1000
+bots: 1
 
 auth_host: localhost
 auth_port: 6500

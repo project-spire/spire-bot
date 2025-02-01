@@ -2,52 +2,73 @@ package core
 
 import (
 	"encoding/binary"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"log/slog"
 	"net"
-	"strconv"
-
-	"google.golang.org/protobuf/proto"
 	"spire/bot/gen/msg"
+	"sync"
 )
 
 type Connection struct {
 	Receiver chan *msg.BaseMessage
 	Sender   chan *msg.BaseMessage
+	Stopped  chan struct{}
+
 	conn     net.Conn
-	stop     chan struct{}
+	logger   *slog.Logger
+	stopOnce sync.Once
 }
 
-func NewConnection(host string, port int) (*Connection, error) {
-	conn, err := net.Dial("tcp", net.JoinHostPort(host, strconv.Itoa(port)))
-	if err != nil {
-		return nil, err
-	}
-
+func NewConnection(logger *slog.Logger) *Connection {
 	return &Connection{
 		Receiver: make(chan *msg.BaseMessage),
 		Sender:   make(chan *msg.BaseMessage),
-		conn:     conn,
-		stop:     make(chan struct{}),
-	}, nil
+		Stopped:  make(chan struct{}, 1),
+		conn:     nil,
+		logger:   logger,
+		stopOnce: sync.Once{},
+	}
 }
 
-func (c *Connection) Start() {
+func (c *Connection) ConnectAsync(address string) <-chan error {
+	errResult := make(chan error, 1)
+
+	go func() {
+		conn, err := net.Dial("tcp", address)
+		if err != nil {
+			c.logger.Warn("Failed to connect to %s: %v", address, err)
+			errResult <- err
+			close(errResult)
+			return
+		}
+
+		c.conn = conn
+
+		close(errResult)
+	}()
+
+	return errResult
+}
+
+func (c *Connection) Start(address string) {
 	go c.receive()
 	go c.send()
 }
 
 func (c *Connection) Stop() {
-	close(c.stop)
-	close(c.Receiver)
-	close(c.Sender)
-	c.conn.Close()
+	c.stopOnce.Do(func() {
+		c.conn.Close()
+		close(c.Receiver)
+		close(c.Sender)
+		close(c.Stopped)
+	})
 }
 
 func (c *Connection) receive() {
 	for {
 		select {
-		case <-c.stop:
+		case <-c.Stopped:
 			return
 
 		default:
@@ -66,7 +87,7 @@ func (c *Connection) receive() {
 
 			base := &msg.BaseMessage{}
 			if err := proto.Unmarshal(bodyBuf, base); err != nil {
-				slog.Warn("Error unmarshal InMessage")
+				c.logger.Warn("Error unmarshal InMessage")
 				c.Stop()
 				return
 			}
@@ -78,8 +99,9 @@ func (c *Connection) receive() {
 func (c *Connection) send() {
 	for {
 		select {
-		case <-c.stop:
+		case <-c.Stopped:
 			return
+
 		case message := <-c.Sender:
 			buf, err := proto.MarshalOptions{}.MarshalAppend(make([]byte, 2), message)
 			if err != nil {
@@ -87,8 +109,8 @@ func (c *Connection) send() {
 				return
 			}
 
-			if 4+len(buf) > 65536 {
-				slog.Warn("OutMessage to large: %v", len(buf))
+			if 2+len(buf) > 65536 {
+				c.logger.Warn("OutMessage to large: %v", len(buf))
 				c.Stop()
 				return
 			}
