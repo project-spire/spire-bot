@@ -7,5 +7,5 @@ mkdir -p gen
 #protoc -I=protocol/msg --go_out=gen --go_opt=paths=import "$PROTOCOLS"
 
 find protocol/msg -name "*.proto" -print | while read -r proto; do
-  protoc -I=protocol/msg --go_out=gen --go_opt=paths=import "$proto"
+  bin/protoc -I=protocol/msg --go_out=gen --go_opt=paths=import "$proto"
 done
