@@ -8,9 +8,16 @@ import (
 	"sync"
 )
 
+type Account struct {
+	AccountId   uint64
+	CharacterId uint64
+	AuthToken   string
+}
+
 type Bot struct {
-	Id      int
+	BotId   int
 	Stopped chan struct{}
+	Account Account
 
 	conn     *core.Connection
 	logger   *slog.Logger
@@ -21,7 +28,7 @@ func NewBot(id int) *Bot {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil)).With("id", id)
 
 	return &Bot{
-		Id:       id,
+		BotId:    id,
 		Stopped:  make(chan struct{}, 1),
 		conn:     core.NewConnection(logger),
 		logger:   logger,
@@ -29,30 +36,23 @@ func NewBot(id int) *Bot {
 	}
 }
 
-func (b *Bot) StartAsync(gameAddress string) <-chan error {
-	errResult := make(chan error, 1)
+func (b *Bot) Start(lobbyAddress string, gameAddress string) {
+	//err := <-b.RequestAuthTokenAsync(lobbyAddress)
+
+	connErr := b.conn.ConnectAsync(gameAddress)
+	if err := <-connErr; err != nil {
+		b.logger.Error("Error connecting %s: %v", gameAddress, err)
+		b.Stop()
+		return
+	}
+	b.logger.Info(fmt.Sprintf("Connected to %s", gameAddress))
+
+	b.conn.Start(gameAddress)
 
 	go func() {
-		connErr := b.conn.ConnectAsync(gameAddress)
-		if err := <-connErr; err != nil {
-			errResult <- err
-			close(errResult)
-			return
-		}
-		b.logger.Info(fmt.Sprintf("Connected to %s", gameAddress))
-		//slog.Info(fmt.Sprintf("%s connected to %s", b.Display(), gameAddress))
-
-		b.conn.Start(gameAddress)
-
-		go func() {
-			<-b.conn.Stopped
-			b.Stop()
-		}()
-
-		close(errResult)
+		<-b.conn.Stopped
+		b.Stop()
 	}()
-
-	return errResult
 }
 
 func (b *Bot) Stop() {
@@ -61,8 +61,4 @@ func (b *Bot) Stop() {
 		b.conn.Stop()
 		close(b.Stopped)
 	})
-}
-
-func (b *Bot) Display() string {
-	return fmt.Sprintf("Bot { id: %d }", b.Id)
 }

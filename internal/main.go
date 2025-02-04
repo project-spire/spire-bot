@@ -1,9 +1,6 @@
-//go:generate cp settings.yaml ./build/settings.yaml
-
 package main
 
 import (
-	"log/slog"
 	"net"
 	"strconv"
 	"sync"
@@ -21,11 +18,9 @@ func main() {
 		defer wg.Done()
 
 		b := bot.NewBot(id)
-		err := <-b.StartAsync(net.JoinHostPort(settings.GameHost, strconv.Itoa(settings.GamePort)))
-		if err != nil {
-			slog.Error("Bot failed to start: %v", err)
-			return
-		}
+		go b.Start(
+			net.JoinHostPort(settings.LobbyHost, strconv.Itoa(settings.LobbyPort)),
+			net.JoinHostPort(settings.GameHost, strconv.Itoa(settings.GamePort)))
 
 		<-b.Stopped
 	}
