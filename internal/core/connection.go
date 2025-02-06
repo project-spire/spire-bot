@@ -58,7 +58,10 @@ func (c *Connection) Start(address string) {
 
 func (c *Connection) Stop() {
 	c.stopOnce.Do(func() {
-		c.conn.Close()
+		if c.conn != nil {
+			c.conn.Close()
+		}
+
 		close(c.Receiver)
 		close(c.Sender)
 		close(c.Stopped)

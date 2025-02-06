@@ -14,7 +14,7 @@ func main() {
 	wg := sync.WaitGroup{}
 	wg.Add(settings.Bots)
 
-	launchBot := func(id int) {
+	launchBot := func(id uint64) {
 		defer wg.Done()
 
 		b := bot.NewBot(id)
@@ -26,7 +26,7 @@ func main() {
 	}
 
 	for i := 1; i <= settings.Bots; i++ {
-		go launchBot(i)
+		go launchBot(uint64(i))
 	}
 
 	wg.Wait()

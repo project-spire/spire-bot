@@ -9,13 +9,12 @@ import (
 )
 
 type Account struct {
-	AccountId   uint64
-	CharacterId uint64
-	AuthToken   string
+	AccountId uint64
+	AuthToken string
 }
 
 type Bot struct {
-	BotId   int
+	BotId   uint64
 	Stopped chan struct{}
 	Account Account
 
@@ -24,7 +23,7 @@ type Bot struct {
 	stopOnce sync.Once
 }
 
-func NewBot(id int) *Bot {
+func NewBot(id uint64) *Bot {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil)).With("id", id)
 
 	return &Bot{
@@ -37,11 +36,13 @@ func NewBot(id int) *Bot {
 }
 
 func (b *Bot) Start(lobbyAddress string, gameAddress string) {
-	//err := <-b.RequestAuthTokenAsync(lobbyAddress)
+	if b.RequestAccount(lobbyAddress) != nil {
+		b.Stop()
+		return
+	}
 
 	connErr := b.conn.ConnectAsync(gameAddress)
 	if err := <-connErr; err != nil {
-		b.logger.Error("Error connecting %s: %v", gameAddress, err)
 		b.Stop()
 		return
 	}
