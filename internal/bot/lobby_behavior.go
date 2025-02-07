@@ -5,10 +5,47 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 )
 
+func post(client *http.Client, url string, req any, resp any, logger *slog.Logger) error {
+	data, _ := json.Marshal(req)
+
+	r, err := client.Post(url, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		logger.Error("Error posting", "url", url, "err", err)
+		return err
+	}
+	if r.StatusCode != http.StatusOK {
+		type ErrorData struct {
+			Error string `json:"error"`
+		}
+
+		var errorData ErrorData
+		if err := json.NewDecoder(r.Body).Decode(&errorData); err != nil {
+			errorData.Error = "Parsing error"
+		}
+
+		logger.Error("Error posting", "url", url, "statusCode", r.StatusCode, "error", errorData.Error)
+		return fmt.Errorf("error posting: status code %d", r.StatusCode)
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(resp); err != nil {
+		logger.Error("Error parsing", "url", url, "err", err)
+		return err
+	}
+
+	return nil
+}
+
 func (b *Bot) RequestAccount(lobbyAddress string) error {
+	url := fmt.Sprintf("https://%s", lobbyAddress)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
+
 	type AccountRequest struct {
 		BotId uint64 `json:"bot_id"`
 	}
@@ -17,12 +54,30 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 		AccountId uint64 `json:"account_id"`
 	}
 
-	type RegisterRequest struct {
-		BotId uint64 `json:"bot_id"`
+	var account AccountResponse
+	if err := post(
+		client, url+"/account/bot", AccountRequest{BotId: b.BotId}, &account, b.logger); err != nil {
+		return err
 	}
 
-	type RegisterResponse struct {
-		AccountId uint64 `json:"account_id"`
+	if account.AccountId == 0 {
+		type RegisterRequest struct {
+			BotId uint64 `json:"bot_id"`
+		}
+
+		type RegisterResponse struct {
+			AccountId uint64 `json:"account_id"`
+		}
+
+		var register RegisterResponse
+		if err := post(
+			client, url+"/register/bot", RegisterRequest{BotId: b.BotId}, &register, b.logger); err != nil {
+			return err
+		}
+
+		b.Account.AccountId = register.AccountId
+	} else {
+		b.Account.AccountId = account.AccountId
 	}
 
 	type AuthRequest struct {
@@ -33,59 +88,13 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 		Token string `json:"token"`
 	}
 
-	url := fmt.Sprintf("https://%s", lobbyAddress)
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
-
-	req, _ := json.Marshal(AccountRequest{BotId: b.BotId})
-	resp, err := client.Post(url+"/account/bot", "application/json", bytes.NewBuffer(req))
-	if err != nil {
-		b.logger.Error("Error requesting account: %v", err)
-		return err
-	}
-
-	var account AccountResponse
-	if err := json.NewDecoder(resp.Body).Decode(&account); err != nil {
-		b.logger.Error("Error parsing account response: %v", err)
-		return err
-	}
-
-	if account.AccountId == 0 {
-		req, _ := json.Marshal(RegisterRequest{BotId: b.BotId})
-		resp, err := client.Post(url+"/register/bot", "application/json", bytes.NewBuffer(req))
-		if err != nil {
-			b.logger.Error("Error requesting register: %v", err)
-			return err
-		}
-
-		var register RegisterResponse
-		if err := json.NewDecoder(resp.Body).Decode(&register); err != nil {
-			b.logger.Error("Error parsing register response: %v", err)
-			return err
-		}
-
-		b.Account.AccountId = register.AccountId
-	} else {
-		b.Account.AccountId = account.AccountId
-	}
-
-	req, _ = json.Marshal(AuthRequest{AccountId: b.Account.AccountId})
-	resp, err = client.Post(url+"/auth/bot", "application/json", bytes.NewBuffer(req))
-	if err != nil {
-		b.logger.Error("Error requesting auth: %v", err)
-		return err
-	}
-
 	var auth AuthResponse
-	if err := json.NewDecoder(resp.Body).Decode(&auth); err != nil {
-		b.logger.Error("Error parsing auth response: %v", err)
+	if err := post(client, url+"/auth/bot", AuthRequest{AccountId: b.BotId}, &auth, b.logger); err != nil {
 		return err
 	}
 
 	b.Account.AuthToken = auth.Token
-	b.logger.Debug("AccountId: %d, Token: %s", b.Account.AccountId, b.Account.AuthToken)
+	b.logger.Debug("AccountId", b.Account.AccountId, "Token", b.Account.AuthToken)
 
 	return nil
 }
