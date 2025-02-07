@@ -9,8 +9,9 @@ import (
 )
 
 type Account struct {
-	AccountId uint64
-	AuthToken string
+	AccountId   uint64
+	CharacterId uint64
+	AuthToken   string
 }
 
 type Bot struct {

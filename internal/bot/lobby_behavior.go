@@ -55,8 +55,8 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 
 	var account AccountResponse
-	if err := post(
-		client, url+"/account/bot", AccountRequest{BotId: b.BotId}, &account, b.logger); err != nil {
+	if err := post(client, url+"/bot/account",
+		AccountRequest{BotId: b.BotId}, &account, b.logger); err != nil {
 		return err
 	}
 
@@ -70,8 +70,8 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 		}
 
 		var register RegisterResponse
-		if err := post(
-			client, url+"/register/bot", RegisterRequest{BotId: b.BotId}, &register, b.logger); err != nil {
+		if err := post(client, url+"/bot/register",
+			RegisterRequest{BotId: b.BotId}, &register, b.logger); err != nil {
 			return err
 		}
 
@@ -80,8 +80,29 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 		b.Account.AccountId = account.AccountId
 	}
 
-	type AuthRequest struct {
+	type CharacterListRequest struct {
 		AccountId uint64 `json:"account_id"`
+	}
+
+	type CharacterListResponse struct {
+		Characters []uint64 `json:"characters"`
+	}
+
+	var characters CharacterListResponse
+	if err := post(client, url+"/bot/character/list",
+		CharacterListRequest{AccountId: b.Account.AccountId}, &characters, b.logger); err != nil {
+		return err
+	}
+
+	if len(characters.Characters) == 0 {
+		//TODO: Create character
+	} else {
+		b.Account.CharacterId = characters.Characters[0]
+	}
+
+	type AuthRequest struct {
+		AccountId   uint64 `json:"account_id"`
+		CharacterId uint64 `json:"character_id"`
 	}
 
 	type AuthResponse struct {
@@ -89,7 +110,8 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 
 	var auth AuthResponse
-	if err := post(client, url+"/auth/bot", AuthRequest{AccountId: b.BotId}, &auth, b.logger); err != nil {
+	if err := post(client, url+"/bot/auth",
+		AuthRequest{AccountId: b.Account.AccountId, CharacterId: b.Account.CharacterId}, &auth, b.logger); err != nil {
 		return err
 	}
 
