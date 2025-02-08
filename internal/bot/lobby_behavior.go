@@ -1,43 +1,10 @@
 package bot
 
 import (
-	"bytes"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
-	"log/slog"
 	"net/http"
 )
-
-func post(client *http.Client, url string, req any, resp any, logger *slog.Logger) error {
-	data, _ := json.Marshal(req)
-
-	r, err := client.Post(url, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		logger.Error("Error posting", "url", url, "err", err)
-		return err
-	}
-	if r.StatusCode != http.StatusOK {
-		type ErrorData struct {
-			Error string `json:"error"`
-		}
-
-		var errorData ErrorData
-		if err := json.NewDecoder(r.Body).Decode(&errorData); err != nil {
-			errorData.Error = "Parsing error"
-		}
-
-		logger.Error("Error posting", "url", url, "statusCode", r.StatusCode, "error", errorData.Error)
-		return fmt.Errorf("error posting: status code %d", r.StatusCode)
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(resp); err != nil {
-		logger.Error("Error parsing", "url", url, "err", err)
-		return err
-	}
-
-	return nil
-}
 
 func (b *Bot) RequestAccount(lobbyAddress string) error {
 	url := fmt.Sprintf("https://%s", lobbyAddress)
@@ -95,7 +62,23 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 
 	if len(characters.Characters) == 0 {
-		//TODO: Create character
+		type CharacterCreateRequest struct {
+			AccountId     uint64 `json:"account_id"`
+			CharacterName string `json:"character_name"`
+		}
+
+		type CharacterCreateResponse struct {
+			CharacterId uint64 `json:"character_id"`
+		}
+
+		characterName := fmt.Sprintf("bot_%05d_%d", b.BotId, 1)
+		var characterCreate CharacterCreateResponse
+		if err := post(client, url+"/bot/character/create",
+			CharacterCreateRequest{AccountId: b.Account.AccountId, CharacterName: characterName}, &characterCreate, b.logger); err != nil {
+			return err
+		}
+
+		b.Account.CharacterId = characterCreate.CharacterId
 	} else {
 		b.Account.CharacterId = characters.Characters[0]
 	}
