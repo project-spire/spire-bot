@@ -13,36 +13,37 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
 
-	type AccountRequest struct {
+	type MeRequest struct {
 		BotId uint64 `json:"bot_id"`
 	}
 
-	type AccountResponse struct {
+	type MeResponse struct {
+		Found     bool   `json:"found"`
 		AccountId uint64 `json:"account_id"`
 	}
 
-	var account AccountResponse
-	if err := post(client, url+"/bot/account",
-		AccountRequest{BotId: b.BotId}, &account, b.logger); err != nil {
+	var account MeResponse
+	if err := post(client, url+"/bot/account/me",
+		MeRequest{BotId: b.BotId}, &account, b.logger); err != nil {
 		return err
 	}
 
-	if account.AccountId == 0 {
-		type RegisterRequest struct {
+	if !account.Found {
+		type AccountCreateRequest struct {
 			BotId uint64 `json:"bot_id"`
 		}
 
-		type RegisterResponse struct {
+		type AccountCreateResponse struct {
 			AccountId uint64 `json:"account_id"`
 		}
 
-		var register RegisterResponse
-		if err := post(client, url+"/bot/register",
-			RegisterRequest{BotId: b.BotId}, &register, b.logger); err != nil {
+		var create AccountCreateResponse
+		if err := post(client, url+"/bot/account/create",
+			AccountCreateRequest{BotId: b.BotId}, &create, b.logger); err != nil {
 			return err
 		}
 
-		b.Account.AccountId = register.AccountId
+		b.Account.AccountId = create.AccountId
 	} else {
 		b.Account.AccountId = account.AccountId
 	}
@@ -93,7 +94,7 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 
 	var auth AuthResponse
-	if err := post(client, url+"/bot/auth",
+	if err := post(client, url+"/bot/account/auth",
 		AuthRequest{AccountId: b.Account.AccountId, CharacterId: b.Account.CharacterId}, &auth, b.logger); err != nil {
 		return err
 	}
