@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -29,24 +30,15 @@ func NewConnection(logger *slog.Logger) *Connection {
 	}
 }
 
-func (c *Connection) ConnectAsync(address string) <-chan error {
-	errResult := make(chan error, 1)
+func (c *Connection) Connect(address string) error {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		c.logger.Warn("Failed to connect to %s: %v", address, err)
+		return err
+	}
 
-	go func() {
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			c.logger.Warn("Failed to connect to %s: %v", address, err)
-			errResult <- err
-			close(errResult)
-			return
-		}
-
-		c.conn = conn
-
-		close(errResult)
-	}()
-
-	return errResult
+	c.conn = conn
+	return nil
 }
 
 func (c *Connection) Start() {
@@ -56,6 +48,7 @@ func (c *Connection) Start() {
 
 func (c *Connection) Stop() {
 	c.stopOnce.Do(func() {
+		c.logger.Info("Closing connection")
 		if c.conn != nil {
 			_ = c.conn.Close()
 		}
@@ -76,7 +69,7 @@ func (c *Connection) receive() {
 		default:
 			headerBuf := make([]byte, 2)
 			if _, err := io.ReadFull(c.conn, headerBuf); err != nil {
-				c.logger.Error("Error receiving header: %v", err)
+				c.logger.Error(fmt.Sprintf("Error receiving header: %v", err))
 				c.Stop()
 				return
 			}
@@ -84,7 +77,7 @@ func (c *Connection) receive() {
 			bodyLen := binary.BigEndian.Uint16(headerBuf)
 			bodyBuf := make([]byte, bodyLen)
 			if _, err := io.ReadFull(c.conn, bodyBuf); err != nil {
-				c.logger.Error("Error receiving body: %v", err)
+				c.logger.Error(fmt.Sprintf("Error receiving body: %v", err))
 				c.Stop()
 				return
 			}
@@ -103,7 +96,7 @@ func (c *Connection) send() {
 
 		case buf := <-c.Sender:
 			if _, err := c.conn.Write(buf); err != nil {
-				c.logger.Error("Error sending: %v", err)
+				c.logger.Error(fmt.Sprintf("Error sending: %v", err))
 				c.Stop()
 				return
 			}

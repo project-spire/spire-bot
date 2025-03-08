@@ -43,8 +43,7 @@ func (b *Bot) Start(lobbyAddress string, gameAddress string) {
 		return
 	}
 
-	connErr := b.conn.ConnectAsync(gameAddress)
-	if err := <-connErr; err != nil {
+	if b.conn.Connect(gameAddress) != nil {
 		b.Stop()
 		return
 	}
@@ -54,8 +53,8 @@ func (b *Bot) Start(lobbyAddress string, gameAddress string) {
 	b.RequestLogin()
 
 	go func() {
-		//<-b.conn.Stopped
-		//b.Stop()
+		<-b.conn.Stopped
+		b.Stop()
 	}()
 }
 
