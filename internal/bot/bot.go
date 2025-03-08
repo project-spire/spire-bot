@@ -50,12 +50,12 @@ func (b *Bot) Start(lobbyAddress string, gameAddress string) {
 	}
 	b.logger.Info(fmt.Sprintf("Connected to %s", gameAddress))
 
-	b.conn.Start(gameAddress)
+	b.conn.Start()
 	b.RequestLogin()
 
 	go func() {
-		<-b.conn.Stopped
-		b.Stop()
+		//<-b.conn.Stopped
+		//b.Stop()
 	}()
 }
 

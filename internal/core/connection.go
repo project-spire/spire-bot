@@ -49,7 +49,7 @@ func (c *Connection) ConnectAsync(address string) <-chan error {
 	return errResult
 }
 
-func (c *Connection) Start(address string) {
+func (c *Connection) Start() {
 	go c.receive()
 	go c.send()
 }
@@ -57,7 +57,7 @@ func (c *Connection) Start(address string) {
 func (c *Connection) Stop() {
 	c.stopOnce.Do(func() {
 		if c.conn != nil {
-			c.conn.Close()
+			_ = c.conn.Close()
 		}
 
 		close(c.Receiver)
@@ -70,6 +70,7 @@ func (c *Connection) receive() {
 	for {
 		select {
 		case <-c.Stopped:
+			c.logger.Info("receive stopped")
 			return
 
 		default:
@@ -88,12 +89,6 @@ func (c *Connection) receive() {
 				return
 			}
 
-			//base := &msg.BaseMessage{}
-			//if err := proto.Unmarshal(bodyBuf, base); err != nil {
-			//	c.logger.Warn("Error unmarshal InMessage")
-			//	c.Stop()
-			//	return
-			//}
 			c.Receiver <- bodyBuf
 		}
 	}
@@ -103,6 +98,7 @@ func (c *Connection) send() {
 	for {
 		select {
 		case <-c.Stopped:
+			c.logger.Info("send stopped")
 			return
 
 		case buf := <-c.Sender:
