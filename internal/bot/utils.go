@@ -2,10 +2,13 @@ package bot
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func post(client *http.Client, url string, req any, resp any, logger *slog.Logger) error {
@@ -27,4 +30,18 @@ func post(client *http.Client, url string, req any, resp any, logger *slog.Logge
 	}
 
 	return nil
+}
+
+func marshalMessage(m proto.Message) ([]byte, error) {
+	buf, err := proto.MarshalOptions{}.MarshalAppend(make([]byte, 2), m)
+	if err != nil {
+		return nil, err
+	}
+
+	if 2+len(buf) > 65536 {
+		return nil, errors.New("message too large")
+	}
+	binary.BigEndian.PutUint16(buf[:2], uint16(len(buf)-2))
+
+	return buf, nil
 }

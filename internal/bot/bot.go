@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"spire/bot/internal/core"
 	"sync"
+
+	"spire/bot/internal/core"
 )
 
 type Account struct {
@@ -50,6 +51,7 @@ func (b *Bot) Start(lobbyAddress string, gameAddress string) {
 	b.logger.Info(fmt.Sprintf("Connected to %s", gameAddress))
 
 	b.conn.Start(gameAddress)
+	b.RequestLogin()
 
 	go func() {
 		<-b.conn.Stopped
@@ -59,7 +61,7 @@ func (b *Bot) Start(lobbyAddress string, gameAddress string) {
 
 func (b *Bot) Stop() {
 	b.stopOnce.Do(func() {
-		b.logger.Info("Stopped")
+		b.logger.Info("Bot Stopped")
 		b.conn.Stop()
 		close(b.Stopped)
 	})

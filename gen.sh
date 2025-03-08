@@ -4,11 +4,12 @@
 export GOPATH=$HOME/go
 export PATH=$PATH:$GOPATH/bin
 
-mkdir -p gen/msg
-
-PROTO_PATH="protocol/msg"
+GEN_PATH="gen/protocol"
+PROTO_PATH="protocol"
 PROTOS=$(find ${PROTO_PATH} -name "*.proto")
-cmd="bin/protoc -I=${PROTO_PATH} --go_out=gen/msg --go_opt=paths=source_relative"
+cmd="bin/protoc -I=${PROTO_PATH} --go_out=${GEN_PATH} --go_opt=paths=source_relative"
+
+mkdir -p ${GEN_PATH}
 
 for proto in ${PROTOS}; do
   relative_proto=$(realpath --relative-to="${PROTO_PATH}" "${proto}")
@@ -17,7 +18,7 @@ for proto in ${PROTOS}; do
     module_proto=""
   fi
 
-  cmd+=" --go_opt=M${relative_proto}=spire/bot/gen/msg/${module_proto}"
+  cmd+=" --go_opt=M${relative_proto}=spire/bot/${GEN_PATH}/${module_proto}"
 done
 
 for proto in ${PROTOS}; do

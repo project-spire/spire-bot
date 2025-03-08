@@ -2,17 +2,15 @@ package core
 
 import (
 	"encoding/binary"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"log/slog"
 	"net"
-	"spire/bot/gen/msg"
 	"sync"
 )
 
 type Connection struct {
-	Receiver chan *msg.BaseMessage
-	Sender   chan *msg.BaseMessage
+	Receiver chan []byte
+	Sender   chan []byte
 	Stopped  chan struct{}
 
 	conn     net.Conn
@@ -22,8 +20,8 @@ type Connection struct {
 
 func NewConnection(logger *slog.Logger) *Connection {
 	return &Connection{
-		Receiver: make(chan *msg.BaseMessage),
-		Sender:   make(chan *msg.BaseMessage),
+		Receiver: make(chan []byte, 16),
+		Sender:   make(chan []byte, 16),
 		Stopped:  make(chan struct{}, 1),
 		conn:     nil,
 		logger:   logger,
@@ -77,6 +75,7 @@ func (c *Connection) receive() {
 		default:
 			headerBuf := make([]byte, 2)
 			if _, err := io.ReadFull(c.conn, headerBuf); err != nil {
+				c.logger.Error("Error receiving header: %v", err)
 				c.Stop()
 				return
 			}
@@ -84,17 +83,18 @@ func (c *Connection) receive() {
 			bodyLen := binary.BigEndian.Uint16(headerBuf)
 			bodyBuf := make([]byte, bodyLen)
 			if _, err := io.ReadFull(c.conn, bodyBuf); err != nil {
+				c.logger.Error("Error receiving body: %v", err)
 				c.Stop()
 				return
 			}
 
-			base := &msg.BaseMessage{}
-			if err := proto.Unmarshal(bodyBuf, base); err != nil {
-				c.logger.Warn("Error unmarshal InMessage")
-				c.Stop()
-				return
-			}
-			c.Receiver <- base
+			//base := &msg.BaseMessage{}
+			//if err := proto.Unmarshal(bodyBuf, base); err != nil {
+			//	c.logger.Warn("Error unmarshal InMessage")
+			//	c.Stop()
+			//	return
+			//}
+			c.Receiver <- bodyBuf
 		}
 	}
 }
@@ -105,21 +105,9 @@ func (c *Connection) send() {
 		case <-c.Stopped:
 			return
 
-		case message := <-c.Sender:
-			buf, err := proto.MarshalOptions{}.MarshalAppend(make([]byte, 2), message)
-			if err != nil {
-				c.Stop()
-				return
-			}
-
-			if 2+len(buf) > 65536 {
-				c.logger.Warn("OutMessage to large: %v", len(buf))
-				c.Stop()
-				return
-			}
-			binary.BigEndian.PutUint16(buf[:2], uint16(len(buf)-2))
-
+		case buf := <-c.Sender:
 			if _, err := c.conn.Write(buf); err != nil {
+				c.logger.Error("Error sending: %v", err)
 				c.Stop()
 				return
 			}
