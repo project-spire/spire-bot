@@ -1,23 +1,19 @@
 package bot
 
 import (
-	"spire/bot/gen/protocol"
-	"spire/bot/gen/protocol/auth"
+	"spire/protocol"
+	"spire/protocol/auth"
 )
 
 func (b *Bot) RequestLogin() {
 	login := &auth.Login{
-		Role:        auth.Role_Player,
-		AccountId:   b.Account.AccountId,
-		CharacterId: b.Account.CharacterId,
-		Token:       b.Account.AuthToken,
+		Token: b.Account.AuthToken,
+	}
+	p := auth.AuthProtocol{
+		Protocol: &auth.AuthProtocol_Login{Login: login},
 	}
 
-	p := &protocol.AuthProtocol{
-		Protocol: &protocol.AuthProtocol_Login{Login: login},
-	}
-
-	buf, err := marshalMessage(p)
+	buf, err := protocol.SerializeProtocol(protocol.Auth, &p)
 	if err != nil {
 		b.logger.Error("%v", err)
 		b.Stop()

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"spire/protocol"
 	"sync"
 )
 
@@ -67,7 +68,7 @@ func (c *Connection) receive() {
 			return
 
 		default:
-			headerBuf := make([]byte, 2)
+			headerBuf := make([]byte, protocol.HeaderSize)
 			if _, err := io.ReadFull(c.conn, headerBuf); err != nil {
 				c.logger.Error(fmt.Sprintf("Error receiving header: %v", err))
 				c.Stop()
