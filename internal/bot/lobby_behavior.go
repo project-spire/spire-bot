@@ -66,6 +66,7 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 		type CharacterCreateRequest struct {
 			AccountId     uint64 `json:"account_id"`
 			CharacterName string `json:"character_name"`
+			Race          string `json:"race"`
 		}
 
 		type CharacterCreateResponse struct {
@@ -75,7 +76,11 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 		characterName := fmt.Sprintf("bot_%05d_%d", b.BotId, 1)
 		var characterCreate CharacterCreateResponse
 		if err := post(client, url+"/bot/character/create",
-			CharacterCreateRequest{AccountId: b.Account.AccountId, CharacterName: characterName}, &characterCreate, b.logger); err != nil {
+			CharacterCreateRequest{
+				AccountId:     b.Account.AccountId,
+				CharacterName: characterName,
+				Race:          "Barbarian",
+			}, &characterCreate, b.logger); err != nil {
 			return err
 		}
 
