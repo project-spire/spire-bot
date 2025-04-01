@@ -10,7 +10,7 @@ import (
 )
 
 type Account struct {
-	AccountId   uint64
+	AccountID   uint64
 	CharacterId uint64
 	AuthToken   string
 }

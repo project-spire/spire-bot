@@ -9,8 +9,8 @@ func (b *Bot) RequestLogin() {
 	login := &auth.Login{
 		Token: b.Account.AuthToken,
 	}
-	p := auth.AuthProtocol{
-		Protocol: &auth.AuthProtocol_Login{Login: login},
+	p := auth.AuthClientProtocol{
+		Protocol: &auth.AuthClientProtocol_Login{Login: login},
 	}
 
 	buf, err := protocol.SerializeProtocol(protocol.Auth, &p)

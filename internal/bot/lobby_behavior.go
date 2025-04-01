@@ -14,42 +14,43 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}
 
 	type MeRequest struct {
-		BotId uint64 `json:"bot_id"`
+		DevID string `json:"dev_id"`
 	}
 
 	type MeResponse struct {
 		Found     bool   `json:"found"`
-		AccountId uint64 `json:"account_id"`
+		AccountID uint64 `json:"account_id"`
 	}
 
+	devID := fmt.Sprintf("bot_%05d", b.BotId)
 	var account MeResponse
-	if err := post(client, url+"/bot/account/me",
-		MeRequest{BotId: b.BotId}, &account, b.logger); err != nil {
+	if err := post(client, url+"/account/dev/me",
+		MeRequest{DevID: devID}, &account, b.logger); err != nil {
 		return err
 	}
 
 	if !account.Found {
 		type AccountCreateRequest struct {
-			BotId uint64 `json:"bot_id"`
+			DevID string `json:"dev_id"`
 		}
 
 		type AccountCreateResponse struct {
-			AccountId uint64 `json:"account_id"`
+			AccountID uint64 `json:"account_id"`
 		}
 
 		var create AccountCreateResponse
-		if err := post(client, url+"/bot/account/create",
-			AccountCreateRequest{BotId: b.BotId}, &create, b.logger); err != nil {
+		if err := post(client, url+"/account/dev/create",
+			AccountCreateRequest{DevID: devID}, &create, b.logger); err != nil {
 			return err
 		}
 
-		b.Account.AccountId = create.AccountId
+		b.Account.AccountID = create.AccountID
 	} else {
-		b.Account.AccountId = account.AccountId
+		b.Account.AccountID = account.AccountID
 	}
 
 	type CharacterListRequest struct {
-		AccountId uint64 `json:"account_id"`
+		AccountID uint64 `json:"account_id"`
 	}
 
 	type CharacterListResponse struct {
@@ -57,8 +58,8 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 
 	var characters CharacterListResponse
-	if err := post(client, url+"/bot/character/list",
-		CharacterListRequest{AccountId: b.Account.AccountId}, &characters, b.logger); err != nil {
+	if err := post(client, url+"/character/list",
+		CharacterListRequest{AccountID: b.Account.AccountID}, &characters, b.logger); err != nil {
 		return err
 	}
 
@@ -75,9 +76,9 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 
 		characterName := fmt.Sprintf("bot_%05d_%d", b.BotId, 1)
 		var characterCreate CharacterCreateResponse
-		if err := post(client, url+"/bot/character/create",
+		if err := post(client, url+"/character/create",
 			CharacterCreateRequest{
-				AccountId:     b.Account.AccountId,
+				AccountId:     b.Account.AccountID,
 				CharacterName: characterName,
 				Race:          "Barbarian",
 			}, &characterCreate, b.logger); err != nil {
@@ -99,13 +100,13 @@ func (b *Bot) RequestAccount(lobbyAddress string) error {
 	}
 
 	var auth AuthResponse
-	if err := post(client, url+"/bot/account/auth",
-		AuthRequest{AccountId: b.Account.AccountId, CharacterId: b.Account.CharacterId}, &auth, b.logger); err != nil {
+	if err := post(client, url+"/account/auth",
+		AuthRequest{AccountId: b.Account.AccountID, CharacterId: b.Account.CharacterId}, &auth, b.logger); err != nil {
 		return err
 	}
 
 	b.Account.AuthToken = auth.Token
-	b.logger.Debug("AccountId", b.Account.AccountId, "Token", b.Account.AuthToken)
+	b.logger.Debug("AccountID", b.Account.AccountID, "Token", b.Account.AuthToken)
 
 	return nil
 }
